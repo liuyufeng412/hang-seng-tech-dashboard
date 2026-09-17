@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.liuyufeng.hstech-dashboard</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/liuyufeng/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/fallback/pnpm</string>
+    <string>start</string>
+    <string>--hostname</string>
+    <string>127.0.0.1</string>
+    <string>--port</string>
+    <string>3000</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/liuyufeng/个人/projects/HangSengTechDashboard</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>NODE_ENV</key>
+    <string>production</string>
+    <key>PATH</key>
+    <string>/Users/liuyufeng/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>/Users/liuyufeng/个人/projects/HangSengTechDashboard/data/runtime/logs/dashboard.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/liuyufeng/个人/projects/HangSengTechDashboard/data/runtime/logs/dashboard-error.log</string>
+</dict>
+</plist>

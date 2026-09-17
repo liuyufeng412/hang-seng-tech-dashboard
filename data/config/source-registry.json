@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "timezone": "Asia/Hong_Kong",
+  "sources": [
+    {"id":"hsi_official_factsheet","role":"canonical","status":"integrated","covers":["index_membership","published_weights","index_facts","valuation_pe"],"updateFrequency":"monthly; membership review quarterly","freshness":"latest_available","reliability":"official"},
+    {"id":"hkex_official","role":"canonical","status":"partially_integrated","covers":["trading_calendar","exchange_statistics","short_selling","stock_connect","official_close"],"integrated":["daily_short_selling_ratio"],"reliability":"official"},
+    {"id":"tencent_finance_minute","role":"primary_vendor","status":"integrated","covers":["hstech_intraday","hk_constituent_intraday","hk_quotes"],"freshness":"delayed","reliability":"high"},
+    {"id":"sina_hk_index_daily","role":"secondary_vendor","status":"integrated","covers":["hstech_daily","official_close_cross_check"],"freshness":"latest_available","reliability":"high"},
+    {"id":"eastmoney_stock_connect_via_akshare","role":"secondary_vendor","status":"integrated_with_visible_vendor_label","covers":["southbound_daily","southbound_intraday_estimate"],"freshness":"delayed","reliability":"medium"},
+    {"id":"akshare_eastmoney_general","role":"fallback","status":"degraded_in_current_network","covers":["hk_snapshot","hk_intraday","a_share","global_backup"],"reason":"push2 endpoints intermittently reject the current network; not used as sole market-data source"},
+    {"id":"yahoo_finance_chart","role":"secondary_vendor","status":"integrated","covers":["cross_market_intraday","global_indices","fx","yield_proxy","commodities"],"freshness":"delayed","reliability":"medium"},
+    {"id":"google_news_rss","role":"discovery","status":"integrated_with_original_publisher_preserved","covers":["news_event_feed"],"freshness":"latest_available","reliability":"medium"},
+    {"id":"tickdb","role":"candidate","status":"api_key_and_testing_required","covers":["hk_intraday","indices","fx","commodities","trading_calendar"]},
+    {"id":"ftshare","role":"candidate","status":"api_key_and_tier_review_required","covers":["hk_daily","southbound","macro","news"]},
+    {"id":"yfinance","role":"not_required","status":"direct_chart_endpoint_used_instead","covers":["us_equity","global_indices","fx","commodities"]},
+    {"id":"fred","role":"canonical","status":"approved_subject_to_release_lag","covers":["us_macro","treasury_history"]},
+    {"id":"web_search","role":"research_only","status":"not_used_by_runtime","covers":["source_discovery","official_document_discovery"]}
+  ]
+}

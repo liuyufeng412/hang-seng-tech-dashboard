@@ -1,0 +1,7 @@
+akshare==1.18.95
+beautifulsoup4>=4.14,<5
+exchange-calendars>=4.13,<5
+feedparser>=6.0,<7
+pandas>=2.3,<3
+pypdf>=6.0,<7
+requests>=2.32,<3

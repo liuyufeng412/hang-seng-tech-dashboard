@@ -1,0 +1,12 @@
+.git
+.next
+.venv
+node_modules
+__pycache__
+*.pyc
+tsconfig.tsbuildinfo
+data/runtime/logs
+data/runtime/*.lock
+data/runtime/*.tmp
+data/runtime/*
+!data/runtime/.gitkeep

@@ -1,0 +1,29 @@
+{
+  "name": "hang-seng-tech-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "data:collect": ".venv/bin/python -m pipeline.collect",
+    "data:morning": ".venv/bin/python -m pipeline.run_scheduled --session morning",
+    "data:midday": ".venv/bin/python -m pipeline.run_scheduled --session midday",
+    "data:evening": ".venv/bin/python -m pipeline.run_scheduled --session evening",
+    "data:watchdog": ".venv/bin/python -m pipeline.scheduler",
+    "data:refresh-news": ".venv/bin/python -m pipeline.refresh_news",
+    "test": ".venv/bin/python -m unittest discover -s tests -v"
+  },
+  "dependencies": {
+    "next": "15.5.24",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "@types/react": "19.1.2",
+    "@types/react-dom": "19.1.2",
+    "typescript": "5.8.3"
+  }
+}

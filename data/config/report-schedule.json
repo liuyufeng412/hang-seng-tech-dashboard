@@ -1,0 +1,10 @@
+{
+  "timezone": "Asia/Hong_Kong",
+  "reports": [
+    {"session":"morning","publishAt":"08:30","marketCutoff":"08:20","newsWindowStart":"previous_report_cutoff"},
+    {"session":"midday","publishAt":"12:30","marketWindow":["09:30","12:00"],"collectionTarget":"12:20"},
+    {"session":"evening","publishAt":"17:00","marketWindow":["09:30","12:00","13:00","16:00"],"collectionTarget":"16:30"}
+  ],
+  "beforeMorningReport":"show_previous_evening",
+  "missedRunPolicy":"catch_up_and_label_actual_generation_time"
+}

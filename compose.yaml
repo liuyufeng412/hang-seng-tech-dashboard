@@ -1,0 +1,20 @@
+services:
+  dashboard:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - dashboard-runtime:/app/data/runtime
+
+  scheduler:
+    build: .
+    restart: unless-stopped
+    command: ["sh", "ops/docker/scheduler-loop.sh"]
+    environment:
+      SCHEDULER_NAME: docker_watchdog
+    volumes:
+      - dashboard-runtime:/app/data/runtime
+
+volumes:
+  dashboard-runtime:

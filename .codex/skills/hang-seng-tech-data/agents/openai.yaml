@@ -1,0 +1,7 @@
+interface:
+  display_name: "恒生科技数据流水线"
+  short_description: "采集、核验并生成恒生科技早午晚三时点报告数据"
+  brand_color: "#16835D"
+  default_prompt: "Use $hang-seng-tech-data to collect and validate the next scheduled Hang Seng TECH report snapshot with full source lineage."
+policy:
+  allow_implicit_invocation: true

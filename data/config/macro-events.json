@@ -1,0 +1,53 @@
+{
+  "timezone": "Asia/Hong_Kong",
+  "events": [
+    {
+      "id": "us-retail-sales-2026-08",
+      "name": "美国 8 月零售销售",
+      "category": "经济数据",
+      "eventAt": "2026-09-16T20:30:00+08:00",
+      "importance": "high",
+      "expected": "公布后先比较实际值、市场预期和前值，再判断消费韧性是否超出定价；未取得可靠一致预期前不预填数字。",
+      "positive": "数据温和且未显著推高美债收益率与美元，纳指/中概股反应稳定或走强。",
+      "negative": "数据明显强于预期并推动美国 10 年期收益率、美元上行，科技股估值承压；或数据显著走弱并触发衰退交易。",
+      "action": "20:30 后联动观察美国 10 年期收益率、美元/离岸人民币、纳指期货和纳斯达克金龙中国指数，不能只根据数据标题判断利好或利空。",
+      "sourceName": "美国人口普查局",
+      "sourceUrl": "https://www.census.gov/retail/release_schedule.html",
+      "sourceType": "government_release_calendar",
+      "updateFrequency": "official release schedule",
+      "reliability": "official"
+    },
+    {
+      "id": "fomc-2026-09-rate-decision",
+      "name": "FOMC 9 月会议与利率决议",
+      "category": "央行政策",
+      "eventAt": "2026-09-17T02:00:00+08:00",
+      "importance": "critical",
+      "expected": "本次为 9 月 15–16 日议息会议，重点不只看利率是否调整，还要同时看政策声明、经济预测与点阵图所反映的后续利率路径。",
+      "positive": "决议及预测较市场定价更温和，美债收益率与美元回落，纳指和中概股风险偏好改善。",
+      "negative": "利率路径、通胀预测或主席表态偏鹰，美债收益率与美元上行，成长股估值继续受压。",
+      "action": "02:00 先看利率决议、声明和经济预测，随后观察发布会信息；次日早报核验美债、美元、纳指、金龙指数与离岸人民币的完整反应。",
+      "sourceName": "美国联邦储备委员会",
+      "sourceUrl": "https://www.federalreserve.gov/monetarypolicy/fomcpresconf20260916.htm",
+      "sourceType": "central_bank_calendar",
+      "updateFrequency": "official meeting calendar",
+      "reliability": "official"
+    },
+    {
+      "id": "fomc-2026-09-minutes",
+      "name": "FOMC 9 月会议纪要",
+      "category": "央行政策",
+      "eventAt": "2026-10-08T02:00:00+08:00",
+      "importance": "medium",
+      "expected": "会议纪要用于补充理解委员对通胀、就业和后续利率路径的分歧，不应替代更早公布的利率决议与经济预测。",
+      "positive": "纪要显示紧缩倾向减弱、对增长风险更重视，且市场利率同步回落。",
+      "negative": "纪要显示多数委员仍支持更长时间维持高利率或进一步收紧。",
+      "action": "临近公布时再提升优先级，并结合当时市场已经计入的降息/加息概率判断边际信息。",
+      "sourceName": "美国联邦储备委员会",
+      "sourceUrl": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+      "sourceType": "central_bank_calendar",
+      "updateFrequency": "official meeting calendar",
+      "reliability": "official"
+    }
+  ]
+}
