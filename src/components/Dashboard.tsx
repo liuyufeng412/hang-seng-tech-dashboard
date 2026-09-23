@@ -8,8 +8,18 @@ const sessionTimes: Record<SessionKey, string> = { morning: "08:30", midday: "12
 const freshnessLabels: Record<string, string> = { realtime: "实时", delayed: "延迟数据", latest_available: "最近可用", stale: "数据过期", unavailable: "不可用" };
 const statusLabels: Record<string, string> = { pending: "待观察", triggered: "已触发", validated: "已验证", failed: "未触发", invalidated: "已失效" };
 const attributionLabels: Record<string, string> = { confirmed: "已确认", strongly_related: "高度相关", possible: "可能相关", structural: "结构性", unknown: "未知" };
-const conditionTypeLabels: Record<string, string> = { resistance: "压力位", support: "支撑位", marketBreadth: "市场宽度", capitalFlow: "南向资金", shortSelling: "沽空比率", macroEvent: "宏观事件" };
+const conditionTypeLabels: Record<string, string> = { resistance: "压力位", support: "支撑位", marketBreadth: "市场宽度", capitalFlow: "南向资金", macroEvent: "宏观事件", newsCatalyst: "新闻催化" };
 const focusGroupLabels: Record<string, string> = { message: "消息面关注", capital: "资金面关注", market: "市场条件" };
+
+function latestDateForSession(availability: DashboardSnapshot["availability"], session: SessionKey) {
+  return availability ? Object.keys(availability.available)
+    .sort((left, right) => right.localeCompare(left))
+    .find((date) => availability.available[date]?.includes(session)) ?? null : null;
+}
+
+function shortDate(value: string | null) {
+  return value ? value.slice(5).replace("-", "/") : "暂无";
+}
 
 function defaultSession(): SessionKey {
   const now = new Date();
@@ -78,7 +88,7 @@ function WatchPanel({ items, selectedId, onSelect }: { items: WatchItem[]; selec
     const groupedItems = items.filter((item) => (item.group ?? "market") === group);
     if (!groupedItems.length) return null;
     return <section className={`watch-group ${group}`} key={group}><div className="watch-group-title"><b>{focusGroupLabels[group]}</b><span>{groupedItems.length} 项</span></div>{groupedItems.map((item) => <button key={item.id} className={`watch-item ${selected.id === item.id ? "selected" : ""}`} onClick={() => onSelect(item.id)}><span className={`watch-state ${item.status}`}>{statusLabels[item.status] ?? item.status}</span><span><small>{item.conditionTypeLabel ?? conditionTypeLabels[item.conditionType] ?? "观察条件"}{item.importance === "critical" ? " · 最高" : item.importance === "high" ? " · 重要" : ""}</small><b>{item.displayValue ?? `${item.operator} ${item.threshold}`}</b><em>{item.label}</em></span></button>)}</section>;
-  })}</div><div className="interpretation"><p className="eyebrow">{focusGroupLabels[selected.group ?? "market"]} · 预期与行动</p><h3>{selected.label}</h3>{selected.eventAt && <p className="focus-time">公布时点：{localTime(selected.eventAt)}（香港时间）</p>}<dl><div><dt>预计情况 / 该怎么看</dt><dd>{selected.expected}</dd></div><div><dt>偏多 / 有效信号</dt><dd>{selected.positive}</dd></div><div><dt>偏空 / 失效信号</dt><dd>{selected.negative}</dd></div><div><dt>当前状态</dt><dd>{selected.validationResult}</dd></div><div><dt>对应行动</dt><dd>{selected.action}</dd></div></dl>{selected.source && <a className="focus-source" href={selected.source.sourceUrl} target="_blank" rel="noreferrer">来源：{selected.source.sourceName} · 官方日程 ↗</a>}</div></div>;
+  })}</div><div className="interpretation"><p className="eyebrow">{focusGroupLabels[selected.group ?? "market"]} · 预期与行动</p><h3>{selected.label}</h3>{selected.eventAt && <p className="focus-time">公布时点：{localTime(selected.eventAt)}（香港时间）</p>}<dl><div><dt>预计情况 / 该怎么看</dt><dd>{selected.expected}</dd></div><div><dt>偏多 / 有效信号</dt><dd>{selected.positive}</dd></div><div><dt>偏空 / 失效信号</dt><dd>{selected.negative}</dd></div><div><dt>当前状态</dt><dd>{selected.validationResult}</dd></div><div><dt>对应行动</dt><dd>{selected.action}</dd></div></dl>{selected.source && <a className="focus-source" href={selected.source.sourceUrl} target="_blank" rel="noreferrer">来源：{selected.source.sourceName}{selected.conditionType === "macroEvent" ? " · 官方日程" : " · 原始报道"} ↗</a>}</div></div>;
 }
 
 function ScenarioPanel({ items }: { items: WatchItem[] }) {
@@ -129,6 +139,21 @@ function ReportLifecycle({ session }: { session: SessionKey }) {
   return <div className="report-lifecycle">{reportModes[session].flow.map((step, index) => <div className={index === 1 ? "current" : ""} key={step.label}><span>{index + 1}</span><section><b>{step.label}</b><small>{step.text}</small></section>{index < 2 && <i>→</i>}</div>)}</div>;
 }
 
+function ScoreCard({ card }: { card: DashboardSnapshot["scoreCard"] }) {
+  if (!card || card.status !== "calculated" || card.total === undefined) return <section className="panel score-preview score-unavailable"><p className="eyebrow">HSTECH SCORE</p><h2>该历史报告尚未计算综合评分</h2><p>新生成的早报、午报和晚报会自动加入评分与动态目标点位。</p></section>;
+  const movement = card.movement === "up" ? "上升" : card.movement === "down" ? "下降" : card.movement === "flat" ? "持平" : "首期基准";
+  const targets = [card.targets.short, card.targets.medium, card.targets.long];
+  const targetLabels = ["短期目标", "中期目标", "长期目标"];
+  return <section className="panel score-preview">
+    <div className="score-preview-head"><div><p className="eyebrow">HSTECH SCORE · RULE-BASED MODEL</p><h2>恒科综合评分与动态目标点位</h2><p>{card.methodology}</p></div><span>计算数据 · 有效覆盖 {card.confidence}/100</span></div>
+    <div className="score-preview-body">
+      <div className="score-hero"><div className="score-ring" style={{ "--score": `${card.total * 3.6}deg` } as React.CSSProperties}><strong>{card.total.toFixed(1)}</strong><span>/ 100</span></div><div><span className="score-grade">{card.label}</span><b className={card.movement === "up" ? "up" : card.movement === "down" ? "down" : "neutral"}>较上一期 {movement}{card.delta === null || card.delta === undefined ? "" : ` ${card.delta > 0 ? "+" : ""}${card.delta.toFixed(1)} 分`}</b><p>{card.judgment}</p></div></div>
+      <div className="score-dimensions">{card.dimensions.map((item) => <div key={item.key} title={item.reason}><span>{item.label}<small>{item.score} / {item.weight}</small></span><i><em style={{ width: `${(item.score / item.weight) * 100}%` }}/></i></div>)}</div>
+      <div className="target-zones">{targets.map((target, index) => <article key={targetLabels[index]}><span>{targetLabels[index]} · {target.direction === "up" ? "向上" : target.direction === "down" ? "向下" : "横向"}</span><b className={target.direction === "up" ? "up" : target.direction === "down" ? "down" : "neutral"}>{formatNumber(target.point, 0)} 点</b><small>参考区间 {formatNumber(target.rangeLow, 0)}–{formatNumber(target.rangeHigh, 0)} · {target.horizon}</small><em>{target.basis}</em><em>失效参考 {formatNumber(target.invalidation, 0)}</em></article>)}<p>目标点位每份报告重新计算；区间仅表示模型容许误差，不代表收益承诺。</p></div>
+    </div>
+  </section>;
+}
+
 export default function Dashboard() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [session, setSession] = useState<SessionKey>(() => defaultSession());
@@ -146,7 +171,7 @@ export default function Dashboard() {
     setLoading(true); setError(null);
     fetch(`/api/dashboard?${params}`, { cache: "no-store", signal: controller.signal })
       .then(async (response) => { const body = await response.json(); if (!response.ok) throw new Error(body.error ?? "Data unavailable"); return body as DashboardSnapshot; })
-      .then((data) => { setSnapshot(data); setReportDate(data.tradingDate); setSelectedEventId(data.events[0]?.id ?? null); setSelectedWatchId(data.watchlist.find((item) => item.group === "message")?.id ?? data.watchlist[0]?.id ?? null); })
+      .then((data) => { setSnapshot(data); setReportDate(data.tradingDate); setSelectedEventId(data.events[0]?.id ?? null); setSelectedWatchId(data.watchlist.find((item) => item.conditionType === "macroEvent")?.id ?? data.watchlist.find((item) => item.conditionType !== "newsCatalyst")?.id ?? null); })
       .catch((reason) => { if (reason.name !== "AbortError") setError(reason.message); })
       .finally(() => setLoading(false));
     return () => controller.abort();
@@ -157,28 +182,47 @@ export default function Dashboard() {
   const contributors = useMemo(() => snapshot ? [...snapshot.constituents].filter((item) => item.changePct !== null).sort((a, b) => Math.abs(b.contributionPoints ?? 0) - Math.abs(a.contributionPoints ?? 0)).slice(0, 8) : [], [snapshot]);
 
   const switchSession = (next: SessionKey) => {
-    if (snapshot?.availability && reportDate && !snapshot.availability.available[reportDate]?.includes(next)) { setError(`${reportDate} 尚无${sessionLabels[next]}`); return; }
+    const latestDate = latestDateForSession(snapshot?.availability, next);
+    if (!latestDate) { setError(`尚无可用的${sessionLabels[next]}`); return; }
+    setError(null);
     setSession(next);
+    setReportDate(latestDate);
+  };
+  const switchDate = (nextDate: string) => {
+    const available = snapshot?.availability?.available[nextDate] ?? [];
+    if (!available.length) { setError(`${nextDate} 尚无已生成的报告`); return; }
+    const nextSession = available.includes(session)
+      ? session
+      : (["evening", "midday", "morning"] as SessionKey[]).find((item) => available.includes(item)) ?? available[0];
+    setError(null);
+    setReportDate(nextDate);
+    setSession(nextSession);
   };
   const returnLatest = () => {
-    const latestDate = snapshot?.availability?.latestDate, preferred = defaultSession(), available = latestDate ? snapshot?.availability?.available[latestDate] ?? [] : [];
-    setReportDate(latestDate ?? ""); setSession(available.includes(preferred) ? preferred : snapshot?.availability?.latestSession ?? "evening");
+    setError(null);
+    setReportDate(snapshot?.availability?.latestDate ?? "");
+    setSession(snapshot?.availability?.latestSession ?? "evening");
   };
 
   if (!snapshot && loading) return <main className="shell"><section className="panel empty-report"><p className="eyebrow">LOADING REAL MARKET DATA</p><h2>正在读取最近一次真实报告</h2><p>页面不会用演示值填补等待中的数据。</p></section></main>;
   if (!snapshot) return <main className="shell"><section className="panel empty-report"><p className="eyebrow">DATA UNAVAILABLE</p><h2>报告暂时不可用</h2><p>{error ?? "尚未生成真实数据快照"}</p></section></main>;
 
   const titlePrefix = snapshot.session === "morning" ? "盘前" : snapshot.session === "midday" ? "上午" : "全天";
-  const maxDate = snapshot.availability?.latestDate ?? snapshot.tradingDate;
   const sourceFreshness = snapshot.index.source?.freshness ?? "unavailable";
   const flowSummary = snapshot.capitalFlows.find((item) => item.key === "southbound");
   const reportMode = reportModes[snapshot.session];
+  const planningWatchlist = snapshot.watchlist.filter((item) => item.conditionType !== "newsCatalyst");
+  const availableDates = snapshot.availability ? Object.keys(snapshot.availability.available).sort((left, right) => right.localeCompare(left)) : [snapshot.tradingDate];
+  const latestBySession = Object.fromEntries((["morning", "midday", "evening"] as SessionKey[]).map((item) => [item, latestDateForSession(snapshot.availability, item)])) as Record<SessionKey, string | null>;
+  const isLatestOfType = reportDate === latestBySession[session];
 
   return <main className="shell">
     <header className="topbar"><div><p className="eyebrow">HANG SENG TECH · RESEARCH WORKBENCH</p><h1>恒生科技投资工作台</h1></div><div className="header-tools"><span className={`data-status ${snapshot.overallStatus}`}>{snapshot.overallStatus === "ok" ? "真实数据完整" : "真实数据 · 部分字段不可用"}</span><div className="date-block"><span>{snapshot.tradingDate}</span><small>{snapshot.sessionLabel} · {freshnessLabels[sourceFreshness] ?? sourceFreshness} · 截止 {snapshot.marketCutoff.slice(11, 16)}</small></div></div></header>
-    <nav className="report-toolbar"><div className="report-tabs">{(["morning", "midday", "evening"] as const).map((item) => <button key={item} className={session === item ? "active" : ""} onClick={() => switchSession(item)}>{sessionLabels[item]}<small>{sessionTimes[item]}</small></button>)}</div><div className="date-filter"><label htmlFor="report-date">报告日期</label><input id="report-date" type="date" value={reportDate} max={maxDate} onChange={(event) => setReportDate(event.target.value)}/><button onClick={returnLatest}>返回最新</button><span>{loading ? "正在更新…" : `生成于 ${localTime(snapshot.generatedAt)}`}</span></div></nav>
+    <nav className="report-toolbar"><div className="report-switcher"><div className="report-tabs">{(["morning", "midday", "evening"] as const).map((item) => <button key={item} className={session === item ? "active" : ""} onClick={() => switchSession(item)} title={`打开最近一份${sessionLabels[item]}`}>{sessionLabels[item]}<small>{sessionTimes[item]} · 最新 {shortDate(latestBySession[item])}</small></button>)}</div><small className="switch-hint">切换报告类型会自动打开该类型最近一份</small></div><div className="date-filter"><label htmlFor="report-date">历史日期</label><select id="report-date" value={reportDate} onChange={(event) => switchDate(event.target.value)}>{availableDates.map((date) => <option value={date} key={date}>{date}</option>)}</select><button onClick={returnLatest}>返回全站最新</button><span>{loading ? "正在更新…" : `当前：${snapshot.tradingDate} ${snapshot.sessionLabel}${isLatestOfType ? " · 该类型最新" : " · 历史报告"}｜生成于 ${localTime(snapshot.generatedAt)}`}</span></div></nav>
     {error && <div className="source-warning"><b>Data unavailable</b><span>{error}</span><button onClick={() => setError(null)}>关闭</button></div>}
     <div className="utility-row"><div><span className="source-pill">主行情：{snapshot.index.source?.sourceName ?? "不可用"}</span><span className="source-pill">成分股：恒生指数公司官方名单与权重</span></div><span>每项数据均保留原始时间和抓取时间</span></div>
+
+    <ScoreCard card={snapshot.scoreCard}/>
 
     <section className="workspace-stage review-stage">
       <header className="stage-heading"><span>01</span><div><p className="eyebrow">REVIEW · {snapshot.sessionLabel}</p><h2>{reportMode.reviewTitle}</h2><small>{reportMode.reviewDescription}</small></div><b>先复盘，再决策</b></header>
@@ -193,12 +237,12 @@ export default function Dashboard() {
       </section>
 
       <section className="panel cross-panel"><div className="panel-head"><div><p className="eyebrow">CROSS-MARKET</p><h2>{reportMode.crossTitle}</h2></div><span className="hint">每张卡片保留市场时区和观测时间</span></div><MarketBoard snapshot={snapshot}/></section>
-      <article className="panel capital-panel capital-wide"><div className="panel-head"><div><p className="eyebrow">CAPITAL FLOW</p><h2>{titlePrefix}资金面</h2></div><span className="permanent-tag">复盘模块 · 每日存档</span></div><div className="fund-summary"><span>资金主线</span><b>{flowSummary?.value === null || !flowSummary ? "南向数据不可用" : `南向 ${flowSummary.value > 0 ? "净流入" : "净流出"} ${Math.abs(flowSummary.value).toFixed(2)} ${flowSummary.unit}`}</b></div><div className="fund-list">{snapshot.capitalFlows.map((item) => <article key={item.key}><div><span>{item.label}</span><b className={(item.value ?? 0) > 0 ? "up" : item.value === null ? "neutral" : "down"}>{item.value === null ? "Data unavailable" : `${item.value.toFixed(2)} ${item.unit}`}</b><p>{item.source ? `${item.source.sourceName} · ${freshnessLabels[item.source.freshness] ?? item.source.freshness}` : "尚无可靠公开数据"}</p></div><aside><strong>{item.status}</strong><small>{item.period}</small></aside></article>)}</div><p className="capital-note">南向午间值属于供应商延迟估算，收盘值使用历史成交净买额；沽空采用港交所官方全天口径，恒科期货基差在可靠接口完成前保持不可用。</p></article>
+      <article className="panel capital-panel capital-wide"><div className="panel-head"><div><p className="eyebrow">CAPITAL FLOW</p><h2>{titlePrefix}资金面</h2></div><span className="permanent-tag">复盘模块 · 每日存档</span></div><div className="fund-summary"><span>资金主线</span><b>{flowSummary?.value === null || !flowSummary ? "南向数据不可用" : `南向 ${flowSummary.value > 0 ? "净流入" : "净流出"} ${Math.abs(flowSummary.value).toFixed(2)} ${flowSummary.unit}`}</b></div><div className="fund-list">{snapshot.capitalFlows.map((item) => <article key={item.key}><div><span>{item.label}</span><b className={(item.value ?? 0) > 0 ? "up" : item.value === null ? "neutral" : "down"}>{item.value === null ? "Data unavailable" : `${item.value.toFixed(2)} ${item.unit}`}</b><p>{item.source ? `${item.source.sourceName} · ${freshnessLabels[item.source.freshness] ?? item.source.freshness}` : "尚无可靠公开数据"}</p></div><aside><strong>{item.status}</strong><small>{item.period}</small></aside></article>)}</div><p className="capital-note">资金面只展示可追溯的南向总额与沪、深港股通分项；延迟估算会明确标注，不使用无法稳定取得的沽空比率或恒科期货基差。</p></article>
     </section>
 
     <section className="workspace-stage followup-stage">
       <header className="stage-heading"><span>02</span><div><p className="eyebrow">FORWARD WATCH · {snapshot.sessionLabel}</p><h2>{reportMode.followTitle}</h2><small>{reportMode.followDescription}</small></div><b>由复盘产生条件</b></header>
-      <section className="plan-grid"><article className="panel outlook-panel"><div className="panel-head"><div><p className="eyebrow">WATCH · EXPECT · ACT</p><h2>后续关注、预期与行动</h2></div><span className="live-dot">按当日重要性动态生成 · 共 {snapshot.watchlist.length} 项</span></div><WatchPanel items={snapshot.watchlist} selectedId={selectedWatchId} onSelect={setSelectedWatchId}/></article><article className="panel branch-panel"><div className="panel-head"><div><p className="eyebrow">SCENARIO BRANCHES</p><h2>情景分支与验证规则</h2></div><span className="hint">基于当日有效条件生成</span></div><ScenarioPanel items={snapshot.watchlist}/></article></section>
+      <section className="plan-grid"><article className="panel outlook-panel"><div className="panel-head"><div><p className="eyebrow">WATCH · EXPECT · ACT</p><h2>后续关注、预期与行动</h2></div><span className="live-dot">仅保留有明确节点的重大事件与市场条件 · 共 {planningWatchlist.length} 项</span></div><WatchPanel items={planningWatchlist} selectedId={selectedWatchId} onSelect={setSelectedWatchId}/></article><article className="panel branch-panel"><div className="panel-head"><div><p className="eyebrow">SCENARIO BRANCHES</p><h2>情景分支与验证规则</h2></div><span className="hint">基于当日有效条件生成</span></div><ScenarioPanel items={planningWatchlist}/></article></section>
       <article className="panel news-panel news-wide"><div className="panel-head"><div><p className="eyebrow">EVENT FEED</p><h2>{titlePrefix}消息面与市场动态</h2></div><span className="hint">{snapshot.news.length} 条相关信息 · 多通道检索并限制重复来源</span></div><div className="news-list">{snapshot.news.length ? snapshot.news.map((item) => <article key={item.eventId}><div><span className="news-tag industry">{item.category}</span>{item.channel && <span className="news-channel">{item.channel}</span>}<h3><a href={item.url} target="_blank" rel="noreferrer">{item.headline}</a></h3><p>{item.publisher} · {item.whyRelevant ?? (item.relatedAssets.length ? `涉及 ${item.relatedAssets.join("、")}` : "市场背景")}</p></div><aside><b className={item.impactDirection === "偏空" ? "down" : item.impactDirection === "偏多" ? "up" : "neutral"}>{item.impactDirection}</b><span>影响权重 {item.impactWeight} · 初步规则</span><small>{localTime(item.publishedAt)}</small></aside></article>) : <div className="data-unavailable">该报告窗口未发现满足检索条件的新闻。</div>}</div></article>
     </section>
 

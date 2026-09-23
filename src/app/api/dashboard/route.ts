@@ -18,12 +18,18 @@ export async function GET(request: NextRequest) {
   const runtimeRoot = path.join(process.cwd(), "data", "runtime");
   try {
     const availability = await readJson<DashboardSnapshot["availability"] & { latestDate: string; latestSession: SessionKey }>(path.join(runtimeRoot, "index.json"));
-    const requestedDate = request.nextUrl.searchParams.get("date") ?? availability.latestDate;
     const rawSession = request.nextUrl.searchParams.get("session") ?? availability.latestSession;
-    if (!datePattern.test(requestedDate) || !sessionKeys.has(rawSession as SessionKey)) {
+    const requestedDateParam = request.nextUrl.searchParams.get("date");
+    if ((requestedDateParam !== null && !datePattern.test(requestedDateParam)) || !sessionKeys.has(rawSession as SessionKey)) {
       return NextResponse.json({ error: "Invalid date or report session", availability }, { status: 400 });
     }
     const session = rawSession as SessionKey;
+    const requestedDate = requestedDateParam ?? Object.keys(availability.available)
+      .sort((left, right) => right.localeCompare(left))
+      .find((date) => availability.available[date]?.includes(session));
+    if (!requestedDate) {
+      return NextResponse.json({ error: `Data unavailable: no ${session} report`, availability }, { status: 404 });
+    }
     const reportPath = path.join(runtimeRoot, "reports", requestedDate, `${session}.json`);
     const snapshot = await readJson<DashboardSnapshot>(reportPath);
     return NextResponse.json({ ...snapshot, availability }, { headers: { "Cache-Control": "no-store" } });

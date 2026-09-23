@@ -90,7 +90,7 @@ pnpm build
 
 `reference/reports/` 只保留产品分析样本。运行时报告保存在 `data/runtime/reports/YYYY-MM-DD/`，页面通过 `/api/dashboard` 读取。正式页面不会回退到 Mock Data；字段缺失时显示 `Data unavailable`、来源错误或最后可用时间。
 
-当前已知的数据边界记录在 `docs/source-evaluation.md`。港股沽空比率、恒科期货基差、指数 PB/历史估值分位和官方精确贡献尚未达到接入标准，因此保持不可用或 estimated 状态。
+当前已知的数据边界记录在 `docs/source-evaluation.md`。港股沽空比率和恒科期货基差因公开数据稳定性不足，不进入正式报告；指数 PB/历史估值分位和官方精确贡献尚未达到接入标准，因此不会伪装成可用数据。
 
 ## 自动更新
 

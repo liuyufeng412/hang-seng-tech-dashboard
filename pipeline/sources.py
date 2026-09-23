@@ -14,9 +14,11 @@ import akshare as ak
 import feedparser
 import pandas as pd
 import requests
+from bs4 import BeautifulSoup
 from pypdf import PdfReader
 
 HKT = ZoneInfo("Asia/Hong_Kong")
+ET = ZoneInfo("America/New_York")
 UTC = timezone.utc
 USER_AGENT = "HangSengTechDashboard/0.2 research-workbench"
 HTTP_HEADERS = {"User-Agent": USER_AGENT}
@@ -541,8 +543,8 @@ NEWS_ASSET_ALIASES = {
 def _news_category(title: str) -> str:
     lowered = title.lower()
     rules = [
-        ("央行 / 利率", ["fed", "美联储", "美债", "yield", "利率"]),
-        ("宏观数据", ["cpi", "就业", "零售", "消费", "通胀", "gdp", "宏观"]),
+        ("央行 / 利率", ["fed", "美联储", "美聯儲", "美债", "美債", "殖利率", "yield", "利率"]),
+        ("宏观数据", ["cpi", "就业", "就業", "零售", "消费", "消費", "通胀", "通脹", "gdp", "宏观", "宏觀"]),
         ("地缘 / 原油", ["oil", "原油", "地缘", "战争", "brent"]),
         ("政策", ["政策", "监管", "政府", "hkma", "金管局"]),
         ("公司 / 行业", ["腾讯", "阿里", "小米", "美团", "京东", "百度", "ai", "芯片"]),
@@ -635,7 +637,7 @@ def get_news_feed(start: datetime, end: datetime) -> tuple[list[dict[str, Any]],
             raw_title = entry.get("title", "").strip()
             publisher = (entry.get("source") or {}).get("title") or "Unknown publisher"
             title = re.sub(rf"\s+-\s+{re.escape(publisher)}$", "", raw_title).strip()
-            if publisher.lower() in NEWS_EXCLUDE_PUBLISHERS or any(term in title.lower() for term in {"討論區", "股吧交流", "今日我咁睇"}):
+            if publisher.lower() in NEWS_EXCLUDE_PUBLISHERS or any(term in title.lower() for term in {"討論區", "讨论区", "討論牆", "讨论墙", "股吧交流", "今日我咁睇"}):
                 continue
             relevance = _news_relevance(title)
             if relevance < 2:
@@ -695,6 +697,182 @@ def get_news_feed(start: datetime, end: datetime) -> tuple[list[dict[str, Any]],
         fetched_at,
     )
     return items[:12], source
+
+
+OFFICIAL_CALENDAR_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+}
+
+
+def _official_event(
+    identifier: str,
+    name: str,
+    event_at: datetime,
+    category: str,
+    importance: str,
+    source_name: str,
+    source_url: str,
+    expected: str,
+    positive: str,
+    negative: str,
+    action: str,
+) -> dict[str, Any]:
+    return {
+        "id": identifier,
+        "name": name,
+        "category": category,
+        "eventAt": event_at.astimezone(HKT).isoformat(),
+        "importance": importance,
+        "expected": expected,
+        "positive": positive,
+        "negative": negative,
+        "action": action,
+        "sourceName": source_name,
+        "sourceUrl": source_url,
+        "sourceType": "government_release_calendar" if category != "央行政策" else "central_bank_calendar",
+        "updateFrequency": "official schedule; refreshed for every report generation",
+        "reliability": "official",
+    }
+
+
+def _get_bls_calendar_events(start: datetime, end: datetime) -> list[dict[str, Any]]:
+    url = "https://www.bls.gov/schedule/news_release/bls.ics"
+    response = requests.get(url, headers=OFFICIAL_CALENDAR_HEADERS, timeout=20)
+    response.raise_for_status()
+    if "BEGIN:VCALENDAR" not in response.text:
+        raise SourceError("BLS calendar did not return iCalendar data")
+    tracked = {
+        "Employment Situation": ("美国非农就业报告", "critical"),
+        "Consumer Price Index": ("美国消费者价格指数（CPI）", "critical"),
+        "Producer Price Index": ("美国生产者价格指数（PPI）", "high"),
+        "Job Openings and Labor Turnover Survey": ("美国JOLTS职位空缺", "high"),
+        "Employment Cost Index": ("美国就业成本指数（ECI）", "high"),
+    }
+    events: list[dict[str, Any]] = []
+    for block in re.findall(r"BEGIN:VEVENT(.*?)END:VEVENT", response.text, re.S):
+        summary_match = re.search(r"^SUMMARY:(.+)$", block, re.M)
+        date_match = re.search(r"^DTSTART(?:;TZID=US-Eastern)?:([0-9]{8}T[0-9]{6})$", block, re.M)
+        if not summary_match or not date_match:
+            continue
+        summary = summary_match.group(1).strip().replace("\\,", ",")
+        if summary not in tracked:
+            continue
+        event_at = datetime.strptime(date_match.group(1), "%Y%m%dT%H%M%S").replace(tzinfo=ET)
+        if not (start < event_at.astimezone(HKT) <= end):
+            continue
+        chinese_name, importance = tracked[summary]
+        events.append(_official_event(
+            f"bls-{summary.lower().replace(' ', '-')}-{event_at.date().isoformat()}",
+            chinese_name,
+            event_at,
+            "经济数据",
+            importance,
+            "美国劳工统计局",
+            url,
+            "公布后比较实际值、市场预期与前值，并观察数据对利率路径定价的边际影响。",
+            "数据组合有利于增长且未显著推高美债收益率与美元，科技股风险偏好改善。",
+            "数据推动美债收益率和美元明显上行，或弱数据触发衰退交易，成长股估值承压。",
+            "公布后联动检查美国10年期收益率、美元/离岸人民币、纳指和金龙指数。",
+        ))
+    return events
+
+
+def _get_retail_calendar_events(start: datetime, end: datetime) -> list[dict[str, Any]]:
+    url = "https://www.census.gov/retail/release_schedule.html"
+    response = requests.get(url, headers=OFFICIAL_CALENDAR_HEADERS, timeout=20)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    table = soup.find("table")
+    if not table:
+        raise SourceError("Census retail schedule table not found")
+    events: list[dict[str, Any]] = []
+    for row in table.find_all("tr")[1:]:
+        cells = [cell.get_text(" ", strip=True) for cell in row.find_all(["th", "td"])]
+        if len(cells) < 2 or "announced" in cells[1].lower():
+            continue
+        try:
+            event_at = datetime.strptime(cells[1], "%B %d, %Y").replace(hour=8, minute=30, tzinfo=ET)
+        except ValueError:
+            continue
+        if not (start < event_at.astimezone(HKT) <= end):
+            continue
+        events.append(_official_event(
+            f"census-retail-{event_at.date().isoformat()}",
+            f"美国{cells[0]}零售销售",
+            event_at,
+            "经济数据",
+            "high",
+            "美国人口普查局",
+            url,
+            "先比较实际值、市场预期和前值，再判断消费韧性与利率压力哪一项主导市场。",
+            "数据温和改善且美债收益率、美元没有明显上行，科技股风险偏好保持稳定。",
+            "数据过热推高利率预期，或显著走弱触发衰退担忧，均可能压制恒科估值。",
+            "公布后联动观察美债、美元/离岸人民币、纳指期货和金龙指数。",
+        ))
+    return events
+
+
+def _get_fomc_calendar_events(start: datetime, end: datetime) -> list[dict[str, Any]]:
+    url = "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+    response = requests.get(url, headers=OFFICIAL_CALENDAR_HEADERS, timeout=20)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.content, "html.parser")
+    events: list[dict[str, Any]] = []
+    for panel in soup.select("div.panel"):
+        heading = panel.get_text(" ", strip=True)[:40]
+        year_match = re.search(r"(20\d{2}) FOMC Meetings", heading)
+        if not year_match:
+            continue
+        year = int(year_match.group(1))
+        for meeting in panel.select("div.fomc-meeting"):
+            month_node = meeting.select_one(".fomc-meeting__month")
+            date_node = meeting.select_one(".fomc-meeting__date")
+            if not month_node or not date_node:
+                continue
+            month_name = month_node.get_text(" ", strip=True).split("/")[-1]
+            date_text = date_node.get_text(" ", strip=True).replace("*", "")
+            end_day_match = re.search(r"(?:-|–)?(\d{1,2})$", date_text)
+            if not end_day_match:
+                continue
+            try:
+                event_at = datetime.strptime(
+                    f"{month_name} {end_day_match.group(1)} {year} 14:00",
+                    "%B %d %Y %H:%M",
+                ).replace(tzinfo=ET)
+            except ValueError:
+                continue
+            if not (start < event_at.astimezone(HKT) <= end):
+                continue
+            events.append(_official_event(
+                f"fomc-decision-{event_at.date().isoformat()}",
+                "FOMC利率决议与发布会",
+                event_at,
+                "央行政策",
+                "critical",
+                "美国联邦储备委员会",
+                url,
+                "重点不只看利率是否调整，还要比较声明、经济预测、点阵图和主席表态与市场原有定价的差异。",
+                "政策路径较市场预期温和，美债收益率与美元回落，纳指和中概股风险偏好改善。",
+                "政策路径偏鹰，美债收益率与美元上行，成长股估值继续承压。",
+                "决议后分阶段核验声明、发布会、美债、美元、纳指、金龙指数及离岸人民币反应。",
+            ))
+    return events
+
+
+def get_official_macro_events(start: datetime, end: datetime) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    events: list[dict[str, Any]] = []
+    errors: list[dict[str, str]] = []
+    for source_id, loader in (
+        ("bls_official_calendar", _get_bls_calendar_events),
+        ("census_retail_calendar", _get_retail_calendar_events),
+        ("federal_reserve_fomc_calendar", _get_fomc_calendar_events),
+    ):
+        try:
+            events.extend(loader(start, end))
+        except Exception as exc:
+            errors.append({"sourceId": source_id, "message": f"{type(exc).__name__}: {exc}"})
+    deduplicated = {event["id"]: event for event in events}
+    return sorted(deduplicated.values(), key=lambda event: event["eventAt"]), errors
 
 
 def cutoff_for(trading_date: str, session: str) -> datetime:

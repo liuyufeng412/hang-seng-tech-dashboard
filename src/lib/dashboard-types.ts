@@ -97,7 +97,41 @@ export type WatchItem = {
   valueType: string;
   importance?: "critical" | "high" | "medium" | "low";
   eventAt?: string | null;
+  newsEventId?: string | null;
+  impactDirection?: string | null;
+  inheritedFromReportId?: string | null;
   source?: SourceMeta | null;
+};
+
+export type ScoreCard = {
+  status: "calculated" | "unavailable";
+  reason?: string;
+  total?: number;
+  label?: string;
+  previousTotal?: number | null;
+  delta?: number | null;
+  movement?: "up" | "down" | "flat" | "baseline";
+  confidence?: number;
+  asOf?: string | null;
+  judgment?: string;
+  dimensions: Array<{ key: string; label: string; score: number; weight: number; reason: string; status: string }>;
+  targets: {
+    short: ScoreTarget;
+    medium: ScoreTarget;
+    long: ScoreTarget;
+  };
+  methodology?: string;
+  valueType?: string;
+};
+
+export type ScoreTarget = {
+  point: number;
+  rangeLow: number;
+  rangeHigh: number;
+  horizon: string;
+  direction: "up" | "down" | "flat";
+  basis: string;
+  invalidation: number;
 };
 
 export type DashboardSnapshot = {
@@ -120,6 +154,7 @@ export type DashboardSnapshot = {
   news: Array<{ eventId: string; headline: string; publisher: string; url: string; publisherUrl: string | null; publishedAt: string; fetchedAt: string; category: string; channel?: string; relatedAssets: string[]; whyRelevant?: string; impactDirection: string; impactWeight: string; impactMethodology: string; sourceReliability: string; sourceType: string }>;
   events: MarketEvent[];
   watchlist: WatchItem[];
+  scoreCard?: ScoreCard;
   technical: { movingAverages: Record<string, number | null>; below: string[]; state: string; valueType: string };
   judgment: { title: string; summary: string; short: string; medium: string; validation: string; analysisType: string; confidence: string };
   metrics: Array<{ key: string; label: string; value: string | number | null; unit: string; badge: string; tone: string; note: string; source: SourceMeta | null }>;
